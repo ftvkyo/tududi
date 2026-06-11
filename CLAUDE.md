@@ -177,7 +177,21 @@ npm start  # Frontend on :8080, Backend on :3002
     - Hashtag parsing from inbox items
     - Tag input component with autocomplete
 
-21. **[Claude Memory & Preferences](docs/MEMORY.md)**
+21. **[OIDC/SSO Authentication](docs/10-oidc-sso.md)**
+    - OpenID Connect single sign-on support
+    - Multiple provider configuration (Google, Okta, Keycloak, Authentik, PocketID, Azure AD, Kanidm)
+    - Account linking and identity management
+    - OAuth2 resource server support (RFC 9728)
+    - Environment variable reference
+
+22. **[CalDAV Synchronization](docs/11-caldav-sync.md)**
+    - CalDAV server for cross-device task access
+    - Supported clients (tasks.org, Apple Reminders, Thunderbird, Evolution)
+    - Remote server sync (Nextcloud, Baikal)
+    - iOS autodiscovery (RFC-compliant)
+    - Environment variable reference
+
+23. **[Claude Memory & Preferences](docs/MEMORY.md)**
     - PR and commit message preferences
     - Testing preferences
     - Common patterns to remember
@@ -203,6 +217,9 @@ Tududi is a self-hosted task management system designed around hierarchical orga
 - **REST API:** Swagger docs + personal API tokens
 - **Telegram Integration:** Create tasks via messages, daily digests
 - **Tag System:** Flexible tagging across tasks, notes, projects
+- **OIDC/SSO:** Single sign-on via OpenID Connect (Google, Keycloak, Authentik, etc.)
+- **CalDAV Sync:** Access tasks from any CalDAV client (Apple Reminders, tasks.org, etc.)
+- **MCP Server:** Model Context Protocol integration for AI assistant access
 
 **Target Users:** Self-hosting individuals and teams managing personal or collaborative productivity
 
@@ -223,6 +240,8 @@ Tududi is a self-hosted task management system designed around hierarchical orga
 - bcrypt + express-session (auth)
 - Swagger (API docs), Multer (uploads)
 - node-cron (scheduling), Nodemailer (email)
+- Hono (MCP server), CSRF protection middleware
+- CalDAV server (RFC 4791), OIDC client (openid-client)
 
 **Testing:**
 - Jest (backend + frontend)
@@ -268,6 +287,6 @@ Tududi is a self-hosted task management system designed around hierarchical orga
 
 ---
 
-**Document Version:** 1.0.0
-**Last Updated:** 2026-03-14
+**Document Version:** 1.1.0
+**Last Updated:** 2026-06-11
 **Maintainer:** Update when architecture changes or patterns evolve
