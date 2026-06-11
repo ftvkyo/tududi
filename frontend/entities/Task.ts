@@ -2,6 +2,15 @@ import { Tag } from './Tag';
 import { Project } from './Project';
 import { Attachment } from './Attachment';
 
+export interface TaskAssignee {
+    id: number;
+    uid: string;
+    name?: string;
+    surname?: string;
+    email: string;
+    role: 'admin' | 'user';
+}
+
 export interface Task {
     id?: number;
     uid?: string;
@@ -31,6 +40,8 @@ export interface Task {
     completed_at: string | null;
     parent_task_id?: number;
     subtasks?: Task[];
+    assigned_to_id?: number | null;
+    Assignee?: TaskAssignee | null;
     parent_child_logic_executed?: boolean;
     attachments?: Attachment[];
     habit_mode?: boolean;

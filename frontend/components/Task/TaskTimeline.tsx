@@ -167,6 +167,30 @@ const TaskTimeline: React.FC<TaskTimelineProps> = ({ taskUid, refreshKey }) => {
                 return t('timeline.events.taskArchived');
             case 'today_changed':
                 return t('timeline.events.todayFlagChanged');
+            case 'assignee_changed': {
+                const toName = event.metadata?.toName;
+                const fromName = event.metadata?.fromName;
+                if (toName && fromName) {
+                    return t('timeline.events.assigneeChanged', {
+                        from: fromName,
+                        to: toName,
+                        defaultValue: `Assignee: ${fromName} → ${toName}`,
+                    });
+                }
+                if (toName) {
+                    return t('timeline.events.assigneeSet', {
+                        name: toName,
+                        defaultValue: `Assigned to ${toName}`,
+                    });
+                }
+                if (fromName) {
+                    return t('timeline.events.assigneeCleared', {
+                        name: fromName,
+                        defaultValue: `Unassigned (was ${fromName})`,
+                    });
+                }
+                return t('timeline.events.assigneeUpdated', 'Assignee updated');
+            }
             default:
                 return getEventTypeLabel(event_type);
         }

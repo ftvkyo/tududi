@@ -1,4 +1,5 @@
 const { Project, Task, Note } = require('../models');
+const { Op } = require('sequelize');
 
 function emptyChanges() {
     return { upserts: [], deletes: [] };
@@ -88,6 +89,18 @@ async function calculateProjectPerms(ctx, action) {
                 grantedByUserId: action.actorUserId,
             });
     } else if (action.verb === 'share_revoke') {
+        if (taskUids.length > 0) {
+            await Task.update(
+                { assigned_to_id: null },
+                {
+                    where: {
+                        uid: { [Op.in]: taskUids },
+                        assigned_to_id: action.targetUserId,
+                    },
+                    transaction: ctx.tx,
+                }
+            );
+        }
         pushDelete(changes, {
             userId: action.targetUserId,
             resourceType: 'project',
@@ -150,6 +163,17 @@ async function calculateTaskPerms(ctx, action) {
                 grantedByUserId: action.actorUserId,
             });
     } else if (action.verb === 'share_revoke') {
+        const taskUidsArray = Array.from(taskUids);
+        await Task.update(
+            { assigned_to_id: null },
+            {
+                where: {
+                    uid: { [Op.in]: taskUidsArray },
+                    assigned_to_id: action.targetUserId,
+                },
+                transaction: ctx.tx,
+            }
+        );
         for (const tuid of taskUids)
             pushDelete(changes, {
                 userId: action.targetUserId,

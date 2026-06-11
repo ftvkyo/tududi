@@ -1,4 +1,4 @@
-const { Project, Task } = require('../../../models');
+const { Project, Task, User } = require('../../../models');
 const permissionsService = require('../../../services/permissionsService');
 
 async function validateProjectAccess(projectId, userId) {
@@ -135,8 +135,79 @@ function validateDeferUntilAndDueDate(
     }
 }
 
+/**
+ * Validate that the given user is allowed to be an assignee for the task.
+ * The assignee must already have read or write access to the task or its project.
+ * On task creation the task uid is not yet known, so pass projectId instead.
+ *
+ * @param {number|string|null|undefined} assigneeId - Numeric user id from request body
+ * @param {object} opts - { taskUid?: string, projectId?: number }
+ * @returns {number|null} The numeric assignee id, or null for unassign
+ * @throws {Error} If the assignee has no access
+ */
+async function validateAssigneeAccess(assigneeId, opts = {}) {
+    if (
+        assigneeId === null ||
+        assigneeId === undefined ||
+        assigneeId === '' ||
+        assigneeId === 0
+    ) {
+        return null;
+    }
+
+    const numericId =
+        typeof assigneeId === 'number' ? assigneeId : parseInt(assigneeId, 10);
+    if (isNaN(numericId)) {
+        throw new Error('Invalid assignee id.');
+    }
+
+    const assignee = await User.findByPk(numericId, { attributes: ['id'] });
+    if (!assignee) {
+        throw new Error('Assignee not found.');
+    }
+
+    const { ACCESS } = permissionsService;
+    const canWrite = (level) =>
+        level === ACCESS.RW || level === ACCESS.ADMIN;
+
+    if (opts.taskUid) {
+        const access = await permissionsService.getAccess(
+            numericId,
+            'task',
+            opts.taskUid
+        );
+        if (!canWrite(access)) {
+            throw new Error(
+                'Assignee does not have write access to this task.'
+            );
+        }
+    } else if (opts.projectId) {
+        const project = await Project.findByPk(opts.projectId, {
+            attributes: ['uid', 'user_id'],
+        });
+        if (project) {
+            const isOwner = project.user_id === numericId;
+            if (!isOwner) {
+                const access = await permissionsService.getAccess(
+                    numericId,
+                    'project',
+                    project.uid
+                );
+                if (!canWrite(access)) {
+                    throw new Error(
+                        'Assignee does not have write access to this task.'
+                    );
+                }
+            }
+        }
+    }
+
+    return numericId;
+}
+
 module.exports = {
     validateProjectAccess,
     validateParentTaskAccess,
     validateDeferUntilAndDueDate,
+    validateAssigneeAccess,
 };

@@ -9,7 +9,7 @@ import {
 } from '../../utils/sharesService';
 import { ChevronDownIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { getCurrentUser } from '../../utils/userUtils';
-import { getApiPath } from '../../config/paths';
+import { fetchUsers, UserItem } from '../../utils/userService';
 
 interface ProjectShareModalProps {
     isOpen: boolean;
@@ -23,14 +23,6 @@ interface ShareRow {
     created_at: string | null;
     email?: string; // best-effort; may stay undefined without a lookup API
     is_owner?: boolean;
-}
-
-interface UserItem {
-    id: number;
-    email: string;
-    name?: string;
-    surname?: string;
-    role: 'admin' | 'user';
 }
 
 const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
@@ -68,12 +60,7 @@ const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
         const loadUsers = async () => {
             setLoadingUsers(true);
             try {
-                const res = await fetch(getApiPath('users'), {
-                    credentials: 'include',
-                    headers: { Accept: 'application/json' },
-                });
-                if (!res.ok) throw new Error('Failed to load users');
-                const data = await res.json();
+                const data = await fetchUsers();
                 // Filter out the current user from the list
                 const filteredUsers = data.filter(
                     (user: UserItem) =>

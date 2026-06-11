@@ -1,5 +1,6 @@
 const { logError } = require('../../../services/logService');
-const { logTaskUpdate, logEvent } = require('../taskEventService');
+const { logTaskUpdate, logEvent, logAssigneeChange } = require('../taskEventService');
+const { User } = require('../../../models');
 
 function captureOldValues(task) {
     return {
@@ -9,6 +10,7 @@ function captureOldValues(task) {
         due_date: task.due_date,
         defer_until: task.defer_until,
         project_id: task.project_id,
+        assigned_to_id: task.assigned_to_id || null,
         note: task.note,
         recurrence_type: task.recurrence_type,
         recurrence_interval: task.recurrence_interval,
@@ -83,6 +85,50 @@ async function logTaskChanges(task, oldValues, reqBody, tagsData, userId) {
 
         if (Object.keys(changes).length > 0) {
             await logTaskUpdate(task.id, userId, changes, { source: 'web' });
+        }
+
+        if (
+            reqBody.assigned_to_id !== undefined &&
+            reqBody.assigned_to_id !== oldValues.assigned_to_id
+        ) {
+            const oldId = oldValues.assigned_to_id;
+            const newId = reqBody.assigned_to_id || null;
+
+            // Resolve display names for the timeline
+            let oldName = null;
+            let newName = null;
+            try {
+                if (oldId) {
+                    const oldUser = await User.findByPk(oldId, {
+                        attributes: ['name', 'surname', 'email'],
+                    });
+                    if (oldUser) {
+                        oldName =
+                            oldUser.name && oldUser.surname
+                                ? `${oldUser.name} ${oldUser.surname}`
+                                : oldUser.name || oldUser.email;
+                    }
+                }
+                if (newId) {
+                    const newUser = await User.findByPk(newId, {
+                        attributes: ['name', 'surname', 'email'],
+                    });
+                    if (newUser) {
+                        newName =
+                            newUser.name && newUser.surname
+                                ? `${newUser.name} ${newUser.surname}`
+                                : newUser.name || newUser.email;
+                    }
+                }
+            } catch (_) {
+                // Name resolution is best-effort; don't block the event
+            }
+
+            await logAssigneeChange(task.id, userId, oldId, newId, {
+                source: 'web',
+                fromName: oldName,
+                toName: newName,
+            });
         }
 
         if (tagsData) {

@@ -170,6 +170,9 @@ function buildTaskAttributes(body, userId, timezone, isUpdate = false) {
         attrs.user_id = userId;
     }
 
+    // assigned_to_id is handled separately in the route after access validation
+    // so it is NOT included here; routes.js sets it on taskAttributes directly.
+
     return attrs;
 }
 

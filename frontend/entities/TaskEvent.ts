@@ -22,7 +22,8 @@ export interface TaskEvent {
         | 'restored'
         | 'today_changed'
         | 'tags_changed'
-        | 'recurrence_changed';
+        | 'recurrence_changed'
+        | 'assignee_changed';
     old_value?: any;
     new_value?: any;
     field_name?: string;

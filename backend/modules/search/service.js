@@ -2,7 +2,7 @@
 
 const { Op } = require('sequelize');
 const moment = require('moment-timezone');
-const { Task, Tag, Project, sequelize } = require('../../models');
+const { Task, Tag, Project, User, sequelize } = require('../../models');
 const searchRepository = require('./repository');
 const { parseSearchParams, priorityToInt } = require('./validation');
 const { serializeTasks } = require('../tasks/core/serializers');
@@ -152,6 +152,14 @@ class SearchService {
             extraConditions.push({ project_id: { [Op.ne]: null } });
         }
 
+        if (extras.has('assigned_to_me')) {
+            extraConditions.push({ assigned_to_id: userId });
+        }
+
+        if (extras.has('unassigned')) {
+            extraConditions.push({ assigned_to_id: null });
+        }
+
         if (extraConditions.length > 0) {
             conditions[Op.and] = extraConditions;
         }
@@ -165,6 +173,12 @@ class SearchService {
     buildTaskInclude(tagIds, extras) {
         const include = [
             { model: Project, attributes: ['id', 'uid', 'name'] },
+            {
+                model: User,
+                as: 'Assignee',
+                attributes: ['id', 'uid', 'name', 'surname', 'email'],
+                required: false,
+            },
             {
                 model: Task,
                 as: 'Subtasks',

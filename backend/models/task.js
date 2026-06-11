@@ -126,6 +126,14 @@ module.exports = (sequelize) => {
                     key: 'id',
                 },
             },
+            assigned_to_id: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+                references: {
+                    model: 'users',
+                    key: 'id',
+                },
+            },
             recurring_parent_id: {
                 type: DataTypes.INTEGER,
                 allowNull: true,

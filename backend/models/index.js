@@ -92,6 +92,9 @@ Task.belongsTo(User, { foreignKey: 'user_id' });
 Task.belongsTo(Project, { foreignKey: 'project_id', allowNull: true });
 Project.hasMany(Task, { foreignKey: 'project_id' });
 
+Task.belongsTo(User, { as: 'Assignee', foreignKey: 'assigned_to_id' });
+User.hasMany(Task, { as: 'AssignedTasks', foreignKey: 'assigned_to_id' });
+
 User.hasMany(Tag, { foreignKey: 'user_id' });
 Tag.belongsTo(User, { foreignKey: 'user_id' });
 

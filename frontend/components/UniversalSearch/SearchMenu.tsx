@@ -73,6 +73,14 @@ const extrasOptions = [
         value: 'assigned_to_project',
         labelKey: 'search.extrasFilter.isAssignedToProject',
     },
+    {
+        value: 'assigned_to_me',
+        labelKey: 'search.extrasFilter.assignedToMe',
+    },
+    {
+        value: 'unassigned',
+        labelKey: 'search.extrasFilter.unassigned',
+    },
 ];
 
 const SearchMenu: React.FC<SearchMenuProps> = ({

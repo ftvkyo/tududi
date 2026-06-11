@@ -152,6 +152,27 @@ const logProjectChange = async (
 };
 
 /**
+ * Log assignee change event
+ */
+const logAssigneeChange = async (
+    taskId,
+    userId,
+    oldAssigneeId,
+    newAssigneeId,
+    metadata = {}
+) => {
+    return await logEvent({
+        taskId,
+        userId,
+        eventType: 'assignee_changed',
+        fieldName: 'assigned_to_id',
+        oldValue: oldAssigneeId,
+        newValue: newAssigneeId,
+        metadata: { ...metadata, action: 'assignee_change' },
+    });
+};
+
+/**
  * Log task name change event
  */
 const logNameChange = async (
@@ -477,6 +498,7 @@ module.exports = {
     logPriorityChange,
     logDueDateChange,
     logProjectChange,
+    logAssigneeChange,
     logNameChange,
     logDescriptionChange,
     logTaskUpdate,

@@ -1,4 +1,4 @@
-const { Task, Tag, Project, sequelize } = require('../../../models');
+const { Task, Tag, Project, User, sequelize } = require('../../../models');
 const { Op, QueryTypes } = require('sequelize');
 const permissionsService = require('../../../services/permissionsService');
 const {
@@ -86,6 +86,12 @@ async function filterTasksByParams(
         {
             model: Project,
             attributes: ['id', 'name', 'status', 'uid'],
+            required: false,
+        },
+        {
+            model: User,
+            as: 'Assignee',
+            attributes: ['id', 'uid', 'name', 'surname', 'email'],
             required: false,
         },
         {
@@ -333,6 +339,22 @@ async function filterTasksByParams(
         whereClause.priority = Task.getPriorityValue(params.priority);
     }
 
+    if (params.assignee) {
+        if (params.assignee === 'me') {
+            whereClause.assigned_to_id = userId;
+        } else if (params.assignee === 'unassigned') {
+            whereClause.assigned_to_id = null;
+        } else {
+            // Treat as a user uid
+            const assigneeUser = await User.findOne({
+                where: { uid: params.assignee },
+                attributes: ['id'],
+                raw: true,
+            });
+            whereClause.assigned_to_id = assigneeUser ? assigneeUser.id : -1;
+        }
+    }
+
     let orderClause = [['created_at', 'DESC']];
 
     if (params.type === 'inbox') {
@@ -423,6 +445,12 @@ function getTaskIncludeConfig() {
             required: false,
         },
         {
+            model: User,
+            as: 'Assignee',
+            attributes: ['id', 'uid', 'name', 'surname', 'email'],
+            required: false,
+        },
+        {
             model: Task,
             as: 'Subtasks',
             include: [
@@ -455,6 +483,12 @@ function getTaskIncludeConfigLight() {
         {
             model: Project,
             attributes: ['id', 'name', 'status', 'uid'],
+            required: false,
+        },
+        {
+            model: User,
+            as: 'Assignee',
+            attributes: ['id', 'uid', 'name', 'surname', 'email'],
             required: false,
         },
     ];

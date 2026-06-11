@@ -30,6 +30,7 @@ import {
     TaskDueDateCard,
     TaskDeferUntilCard,
     TaskAttachmentsCard,
+    TaskAssigneeCard,
 } from './TaskDetails/';
 import {
     isTaskOverdueInTodayPlan,
@@ -1095,6 +1096,39 @@ const TaskDetails: React.FC = () => {
         }
     };
 
+    const handleAssigneeUpdate = async (assigneeId: number | null) => {
+        if (!task?.uid) return;
+
+        try {
+            taskModifiedRef.current = true;
+            await updateTask(task.uid, { assigned_to_id: assigneeId });
+
+            if (uid) {
+                const updatedTask = await fetchTaskByUid(uid);
+                const existingIndex = tasksStore.tasks.findIndex(
+                    (t: Task) => t.uid === uid
+                );
+                if (existingIndex >= 0) {
+                    const updatedTasks = [...tasksStore.tasks];
+                    updatedTasks[existingIndex] = {
+                        ...updatedTask,
+                        subtasks: updatedTask.subtasks || task.subtasks || [],
+                    };
+                    tasksStore.setTasks(updatedTasks);
+                }
+            }
+
+            showSuccessToast(t('task.assigneeUpdated', 'Assignee updated'));
+            setTimelineRefreshKey((prev) => prev + 1);
+        } catch (error: any) {
+            console.error('Error updating assignee:', error);
+            showErrorToast(
+                error?.message || t('task.assigneeUpdateError', 'Failed to update assignee')
+            );
+            throw error;
+        }
+    };
+
     const handlePriorityUpdate = async (priority: any) => {
         if (!task?.uid) return;
 
@@ -1203,6 +1237,11 @@ const TaskDetails: React.FC = () => {
                                     onUpdate={handleTagsUpdate}
                                     onLoadTags={() => tagsStore.loadTags()}
                                     getTagLink={getTagLink}
+                                />
+
+                                <TaskAssigneeCard
+                                    task={task}
+                                    onUpdate={handleAssigneeUpdate}
                                 />
 
                                 <TaskDueDateCard

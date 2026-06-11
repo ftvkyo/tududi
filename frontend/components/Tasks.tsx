@@ -12,7 +12,7 @@ import { useStore } from '../store/useStore';
 import { useToast } from './Shared/ToastContext';
 import { SortOption } from './Shared/SortFilterButton';
 import IconSortDropdown from './Shared/IconSortDropdown';
-import { TagIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import { TagIcon, XMarkIcon, UserIcon } from '@heroicons/react/24/solid';
 import {
     QueueListIcon,
     InformationCircleIcon,
@@ -72,6 +72,7 @@ const Tasks: React.FC = () => {
         query.get('type') === 'upcoming' || location.pathname === '/upcoming';
     const status = query.get('status');
     const tag = query.get('tag');
+    const assignee = query.get('assignee');
 
     useEffect(() => {
         if (status === 'completed') {
@@ -214,9 +215,10 @@ const Tasks: React.FC = () => {
 
             const searchParams = allTasksUrl.toString();
 
+            const assigneeParam = query.get('assignee');
             const tasksResponse = await fetch(
                 getApiPath(
-                    `tasks?${searchParams}${tagId ? `&tag=${tagId}` : ''}`
+                    `tasks?${searchParams}${tagId ? `&tag=${tagId}` : ''}${assigneeParam ? `&assignee=${assigneeParam}` : ''}`
                 )
             );
 
@@ -349,6 +351,15 @@ const Tasks: React.FC = () => {
     const handleRemoveTag = () => {
         const params = new URLSearchParams(location.search);
         params.delete('tag');
+        navigate({
+            pathname: location.pathname,
+            search: `?${params.toString()}`,
+        });
+    };
+
+    const handleRemoveAssignee = () => {
+        const params = new URLSearchParams(location.search);
+        params.delete('assignee');
         navigate({
             pathname: location.pathname,
             search: `?${params.toString()}`,
@@ -542,6 +553,24 @@ const Tasks: React.FC = () => {
                                         {capitalize(tag)}
                                     </span>
                                     <XMarkIcon className="h-4 w-4 text-gray-500 dark:text-gray-300 hover:text-red-500" />
+                                </button>
+                            </div>
+                        )}
+                        {assignee && (
+                            <div className="ml-2 flex items-center space-x-2">
+                                <button
+                                    className="flex items-center space-x-1 px-2 py-1 bg-blue-50 dark:bg-blue-900/40 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-800/60"
+                                    onClick={handleRemoveAssignee}
+                                >
+                                    <UserIcon className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+                                    <span className="text-xs text-blue-700 dark:text-blue-300">
+                                        {assignee === 'me'
+                                            ? t('task.assignedToMe', 'Assigned to me')
+                                            : assignee === 'unassigned'
+                                              ? t('task.unassigned', 'Unassigned')
+                                              : assignee}
+                                    </span>
+                                    <XMarkIcon className="h-4 w-4 text-blue-500 dark:text-blue-400 hover:text-red-500" />
                                 </button>
                             </div>
                         )}

@@ -10,6 +10,8 @@ const {
     TaskEvent,
     RecurringCompletion,
     Project,
+    User,
+    Permission,
     sequelize,
 } = require('../../models');
 const taskRepository = require('./repository');
@@ -42,6 +44,7 @@ const {
     validateProjectAccess,
     validateParentTaskAccess,
     validateDeferUntilAndDueDate,
+    validateAssigneeAccess,
 } = require('./utils/validation');
 const {
     buildTaskAttributes,
@@ -50,6 +53,7 @@ const {
 const { createSubtasks, updateSubtasks } = require('./operations/subtasks');
 const { handleCompletionStatus } = require('./operations/completion');
 const { captureOldValues, logTaskChanges } = require('./utils/logging');
+const { notifyAssignment } = require('./taskAssignmentNotifier');
 const {
     handleParentChildOnStatusChange,
 } = require('./operations/parent-child');
@@ -457,9 +461,33 @@ router.post('/task', async (req, res) => {
             return res.status(400).json({ error: error.message });
         }
 
+        if (req.body.assigned_to_id !== undefined) {
+            try {
+                const validAssigneeId = await validateAssigneeAccess(
+                    req.body.assigned_to_id,
+                    { projectId: taskAttributes.project_id || null }
+                );
+                taskAttributes.assigned_to_id = validAssigneeId;
+            } catch (error) {
+                return res
+                    .status(error.message === 'Assignee does not have write access to this task.' ? 403 : 400)
+                    .json({ error: error.message });
+            }
+        }
+
         const task = await taskRepository.create(taskAttributes);
         await updateTaskTags(task, tagsData, req.currentUser.id);
         await createSubtasks(task.id, subtasks, req.currentUser.id);
+
+        // Notify assignee (best-effort, never blocks response)
+        if (taskAttributes.assigned_to_id) {
+            await notifyAssignment({
+                taskUid: task.uid,
+                taskName: task.name,
+                assigneeId: taskAttributes.assigned_to_id,
+                actorId: req.currentUser.id,
+            });
+        }
 
         const taskWithAssociations = await taskRepository.findById(task.id, {
             include: TASK_INCLUDES_WITH_SUBTASKS,
@@ -673,6 +701,20 @@ router.patch('/task/:uid', requireTaskWriteAccess, async (req, res) => {
             }
         }
 
+        if (req.body.assigned_to_id !== undefined) {
+            try {
+                const validAssigneeId = await validateAssigneeAccess(
+                    req.body.assigned_to_id,
+                    { taskUid: req.params.uid }
+                );
+                taskAttributes.assigned_to_id = validAssigneeId;
+            } catch (error) {
+                return res
+                    .status(error.message === 'Assignee does not have write access to this task.' ? 403 : 400)
+                    .json({ error: error.message });
+            }
+        }
+
         const recurrenceFields = [
             'recurrence_type',
             'recurrence_interval',
@@ -851,6 +893,20 @@ router.patch('/task/:uid', requireTaskWriteAccess, async (req, res) => {
             req.currentUser.id
         );
 
+        // Notify assignee when assignee changed (best-effort, never blocks response)
+        if (
+            taskAttributes.assigned_to_id !== undefined &&
+            taskAttributes.assigned_to_id !== oldValues.assigned_to_id &&
+            taskAttributes.assigned_to_id
+        ) {
+            await notifyAssignment({
+                taskUid: task.uid,
+                taskName: task.name,
+                assigneeId: taskAttributes.assigned_to_id,
+                actorId: req.currentUser.id,
+            });
+        }
+
         const taskWithAssociations = await taskRepository.findById(task.id, {
             include: TASK_INCLUDES_WITH_SUBTASKS,
         });
@@ -1008,6 +1064,80 @@ router.get('/task/:uid/next-iterations', async (req, res) => {
         res.status(500).json({ error: 'Failed to get next iterations' });
     }
 });
+
+/**
+ * GET /task/:uid/assignable-users
+ * Returns the task owner and all collaborators who can be assigned to this task.
+ * Requires at least read access to the task.
+ */
+router.get(
+    '/task/:uid/assignable-users',
+    requireTaskReadAccess,
+    async (req, res) => {
+        try {
+            const task = await taskRepository.findByUid(req.params.uid, {
+                attributes: ['id', 'uid', 'user_id', 'project_id'],
+            });
+            if (!task) {
+                return res.status(404).json({ error: 'Task not found.' });
+            }
+
+            // Map<userId, access_level> — 'rw' beats 'ro' if seen via multiple paths
+            const accessMap = new Map();
+            const grant = (userId, level) => {
+                const current = accessMap.get(userId);
+                if (!current || (level === 'rw' && current !== 'rw')) {
+                    accessMap.set(userId, level);
+                }
+            };
+
+            grant(task.user_id, 'rw');
+
+            // Direct task permissions
+            const taskPerms = await Permission.findAll({
+                where: { resource_type: 'task', resource_uid: task.uid },
+                attributes: ['user_id', 'access_level'],
+                raw: true,
+            });
+            taskPerms.forEach((p) => grant(p.user_id, p.access_level));
+
+            // Parent project permissions
+            if (task.project_id) {
+                const project = await Project.findByPk(task.project_id, {
+                    attributes: ['uid', 'user_id'],
+                });
+                if (project) {
+                    grant(project.user_id, 'rw');
+                    const projectPerms = await Permission.findAll({
+                        where: {
+                            resource_type: 'project',
+                            resource_uid: project.uid,
+                        },
+                        attributes: ['user_id', 'access_level'],
+                        raw: true,
+                    });
+                    projectPerms.forEach((p) => grant(p.user_id, p.access_level));
+                }
+            }
+
+            const userRows = await User.findAll({
+                where: { id: Array.from(accessMap.keys()) },
+                attributes: ['id', 'uid', 'name', 'surname', 'email'],
+                raw: true,
+            });
+
+            const users = userRows.map((u) => ({
+                ...u,
+                access_level: accessMap.get(u.id) || 'ro',
+            }));
+
+            res.json({ users });
+        } catch (error) {
+            logError('Error fetching assignable users:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+);
 
 // Mount sub-routers for task-related routes
 router.use(attachmentsRouter);

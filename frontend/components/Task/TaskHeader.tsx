@@ -16,6 +16,7 @@ import { Task } from '../../entities/Task';
 import { fetchSubtasks } from '../../utils/tasksService';
 import { isTaskCompleted, isTaskInProgress } from '../../constants/taskStatus';
 import TaskStatusControl from './TaskStatusControl';
+import { getUserInitials } from '../../utils/userService';
 import { parseDateString, getTodayDateString, getTomorrowDateString, getYesterdayDateString } from '../../utils/dateUtils';
 
 interface TaskHeaderProps {
@@ -160,7 +161,8 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({
         (isTaskCompleted(task.status) && task.completed_at) ||
         (task.recurrence_type && task.recurrence_type !== 'none') ||
         task.recurring_parent_id ||
-        !!formattedDeferUntil;
+        !!formattedDeferUntil ||
+        !!task.Assignee;
 
     return (
         <div
@@ -387,6 +389,16 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({
                                                         ', '}
                                                 </React.Fragment>
                                             ))}
+                                        </span>
+                                    </div>
+                                )}
+                                {task.Assignee && (
+                                    <div className="flex items-center gap-1 whitespace-nowrap">
+                                        <span
+                                            className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200 text-[10px] font-semibold flex-shrink-0"
+                                            title={task.Assignee.email}
+                                        >
+                                            {getUserInitials(task.Assignee)}
                                         </span>
                                     </div>
                                 )}
